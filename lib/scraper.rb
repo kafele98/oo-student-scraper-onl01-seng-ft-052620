@@ -2,36 +2,46 @@ require 'open-uri'
 require 'pry'
 
 class Scraper
+  attr_accessor :name, :location, :twitter, :linkedin, :github, :blog, :profile_quote, :bio, :profile_url 
 
   def self.scrape_index_page(index_url)
-    students_hash = []
-      html = Nokogiri::HTML(open(index_url))
-      html.css(".student-card").collect do |student|
-       hash = {
-        name: student.css("h4.student-name").text,
-        location: student.css("p.student-location").text,
-        profile_url: "http://students.learn.co/" + student.css("a").attribute("href")
-       }
-        students_hash << hash
-     end
-     students_hash
+    html = open(index_url)
+    doc = Nokogiri::HTML(html)
+    student_page = doc.css('.student-card a')
+    binding.pry
+    student_page.map do |student|
+      {
+      name: student.css('.student-name').text,
+      location: student.css('.student-location').text,
+      profile_url: student.attr('href')
+      }
+    end
   end
 
   def self.scrape_profile_page(profile_url)
-    students_hash = {}
+    html = open(profile_url)
+    doc = Nokogiri::HTML(html)
+    profiles = {}
 
-    html = Nokogiri::HTML(open(profile_url))
-    html.css("div.social-icon-controler a").each do |student|
-        url = student.attribute("href")
-        students_hash[:twitter_url] = url if url.include?("twitter")
-        students_hash[:linkedin_url] = url if url.include?("linkedin")
-        students_hash[:github_url] = url if url.include?("github")
-        students_hash[:blog_url] = url if student.css("img").attribute("src").text.include?("rss")
+    profile_page = doc.css('.social-icon-container a').map {|el| el.attribute('href').value}
+    
+    profile_page.map do |profile|
+      if profile.include?("twitter")
+        profiles[:twitter] = profile
+      elsif profile.include?("linkedin")
+        profiles[:linkedin] = profile
+      elsif profile.include?("github")
+        profiles[:github] = profile
+      else 
+        profiles[:blog] = profile
+      end
     end
-        students_hash[:profile_quote] = html.css("div.profile-quote").text
-        students_hash[:bio] = html.css("div.bio-content p").text
-    students_hash
+
+    profiles[:profile_quote] = doc.css(".profile-quote").text if doc.css(".profile-quote")
+    profiles[:bio] = doc.css('.description-holder p').text if doc.css('.description-holder p')
+    
+    profiles
+    
   end
 
 end
-
